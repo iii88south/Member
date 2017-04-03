@@ -1,0 +1,12 @@
+﻿
+@{
+    ViewBag.Title = "Index";
+}
+
+<h2>Index</h2>
+
+歡迎<br />
+@HttpContext.Current.User.Identity.Name
+
+
+@Html.ActionLink("登出","SignOut","auth");
