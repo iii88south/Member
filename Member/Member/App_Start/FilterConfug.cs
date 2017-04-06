@@ -27,7 +27,7 @@ namespace Member.App_Start
             if (userId ==null)
             {
                 var controller = HttpContext.Current.Request.RequestContext.RouteData.Values["Controller"];
-                if (controller !="Auth")
+                if (!controller.Equals("Auth"))
                 {
                     filterContext.Result = new RedirectToRouteResult(new System.Web.Routing.RouteValueDictionary() {
                     { "Controller","Auth"},

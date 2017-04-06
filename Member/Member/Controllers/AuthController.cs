@@ -20,6 +20,7 @@ namespace Member.Controllers
 
 
         [HttpGet]
+
         public ActionResult Login(string returnUrl)
         {
             var model = new LoginViewModel() { returnUrl = returnUrl };
@@ -28,6 +29,7 @@ namespace Member.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<ActionResult> Login(LoginViewModel model)
         {
             if (!ModelState.IsValid)
@@ -49,7 +51,64 @@ namespace Member.Controllers
             }
 
         }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult ExternalLogin(string provider, string returnUrl)
+        {
+            returnUrl = GetRedirectUrl(returnUrl);
+            return new ChallengeResult(provider, Url.Action("ExternalLoginCallBack", "Auth", new { returnUrl = returnUrl }));
+        }
 
+        [HttpGet]
+        public async Task<ActionResult> ExternalLoginCallBack(string returnUrl)
+        {
+            var logininfo = await GetAuthenticationManager().GetExternalLoginInfoAsync();
+
+            if (logininfo == null)
+            {
+                return RedirectToAction("Login");
+            }
+
+            if (logininfo != null)
+            {
+
+
+                var id = new ClaimsIdentity(logininfo.ExternalIdentity.Claims, DefaultAuthenticationTypes.ApplicationCookie);
+
+                var user = await usermanager.FindByEmailAsync(logininfo.Email);
+
+                if (user != null)
+                {
+                     await Signin(user);
+
+
+                }
+                else
+                {
+                    user = new AppUser()
+                    {
+                        UserName = logininfo.Email,
+                        Email = logininfo.Email
+                    };
+
+                    var result = await usermanager.CreateAsync(user);
+
+                    if (result.Succeeded)
+                    {
+                        await Signin(user);
+
+                        return RedirectToAction("Index", "Home");
+                    }
+                }
+
+                return Redirect(returnUrl);
+            }
+            else
+            {
+                return RedirectToAction("Login");
+            }
+
+        }
 
 
         [HttpGet]
@@ -111,8 +170,13 @@ namespace Member.Controllers
 
         private async Task Signin(AppUser user)
         {
+
             var identity = await usermanager.CreateIdentityAsync(user, DefaultAuthenticationTypes.ApplicationCookie);
-            identity.AddClaim(new Claim(ClaimTypes.Country, user.Country));
+            if (!string.IsNullOrEmpty(user.Country))
+            {
+                identity.AddClaim(new Claim(ClaimTypes.Country, user.Country));
+            }
+           
             GetAuthenticationManager().SignIn(identity);
         }
 
@@ -134,4 +198,36 @@ namespace Member.Controllers
             return returnUrl;
         }
     }
+
+    internal class ChallengeResult : HttpUnauthorizedResult
+    {
+        public ChallengeResult(string provider, string redirectUri) : this(provider, redirectUri, null)
+        {
+        }
+
+        public ChallengeResult(string provider, string redirectUrl, string userId)
+        {
+            LoginProvider = provider;
+            RedirectUri = redirectUrl;
+            UserId = userId;
+        }
+
+        public string LoginProvider { get; set; }
+        public string RedirectUri { get; set; }
+        public string UserId { get; set; }
+
+        public override void ExecuteResult(ControllerContext context)
+        {
+            var properties = new AuthenticationProperties() { RedirectUri = RedirectUri };
+            if (UserId != null)
+            {
+                properties.Dictionary["XsrfKey"] = UserId;
+
+            }
+            context.HttpContext.GetOwinContext().Authentication.Challenge(properties, LoginProvider);
+
+        }
+    }
+
+
 }

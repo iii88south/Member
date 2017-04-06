@@ -44,8 +44,17 @@
             </div>
         </div>
     </div>
+
+ 
+    
+
 }
 
 <div>
     @Html.ActionLink("Back to List", "Index")
 </div>
+@using (Html.BeginForm("ExternalLogin", "Auth", FormMethod.Post))
+{   @Html.AntiForgeryToken()
+    <button type="submit" class="btn btn-primary" id="Google" name="provider" value="Google" title="Signin with Google account">Signin with Google account</button>
+    <button type="submit" class="btn btn-primary" id="Facebook" name="provider" value="Facebook" title="Signin with Facebook account">Signin with Google account</button>
+}
